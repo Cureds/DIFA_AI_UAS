@@ -35,12 +35,16 @@ def load_difa_brain():
     model.eval()
     return model, device
 
-# --- 2. AUDIO PROCESSING ---
 def process_audio(audio_file):
-    # Load and convert to Mel Spectrogram
+    # Load whole file and normalize
     audio, _ = librosa.load(audio_file, sr=16000)
+    audio = librosa.util.normalize(audio) # ADD THIS LINE
+    
     mel = librosa.feature.melspectrogram(y=audio, sr=16000, n_mels=128)
     mel_db = librosa.power_to_db(mel, ref=np.max)
+    
+    # Scale to [0, 1] - MUST MATCH TRAINING
+    mel_db = (mel_db - mel_db.min()) / (mel_db.max() - mel_db.min() + 1e-6)
     
     # Prepare for ResNet
     transform = transforms.Compose([
@@ -49,7 +53,6 @@ def process_audio(audio_file):
         transforms.ToTensor(),
     ])
     
-    # Convert to 3-channel RGB as model expects
     img = transform(mel_db)
     img = img.repeat(3, 1, 1).unsqueeze(0) 
     return img
